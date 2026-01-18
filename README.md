@@ -1,6 +1,14 @@
 # Dev-Tooling
 
-Rsync-based synchronization tool to mirror development directories between Mac-Studio and MacBookPro.
+Development environment synchronization and remote access tools for Mac-Studio and MacBookPro.
+
+## Overview
+
+This repo provides:
+- **Rsync sync script** - Mirror directories between machines for offline work
+- **Tailscale setup** - Mesh VPN for secure remote access from anywhere
+
+See [TAILSCALE.md](TAILSCALE.md) for network setup guide.
 
 ## Quick Start
 
@@ -50,6 +58,26 @@ Rsync-based synchronization tool to mirror development directories between Mac-S
 ## SSH Setup
 
 Add the following to `~/.ssh/config` on **both machines**:
+
+### With Tailscale (Recommended)
+
+Using Tailscale MagicDNS names works from anywhere:
+
+```
+Host mac-studio
+    HostName mac-studio
+    User traviscarter
+    IdentityFile ~/.ssh/id_ed25519
+
+Host macbook-pro
+    HostName macbook-pro
+    User traviscarter
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+### Local Network Only (Bonjour)
+
+If you only need to connect on the same local network:
 
 ```
 Host mac-studio
