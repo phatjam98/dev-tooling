@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Claude Code cache/temp directories
+cache/
+http-cache/
+debug/
+file-history/
+paste-cache/
+session-env/
+shell-snapshots/
+todos/
+statsig/
+stats-cache.json
+history.jsonl
+
+# Vim swap files
+*.swp
+*.swo
+
+# Logs
+*.log

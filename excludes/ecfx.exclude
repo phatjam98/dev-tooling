@@ -1,0 +1,36 @@
+# Node.js
+node_modules/
+
+# macOS
+.DS_Store
+
+# Build outputs
+dist/
+target/
+build/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Gradle/Java
+.gradle/
+.idea/
+*.iml
+
+# AI/IDE
+.junie/
+.claude/
+
+# Logs and temp files
+*.log
+*.tmp

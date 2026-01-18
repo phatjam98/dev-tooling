@@ -1,0 +1,8 @@
+# Lock file (created during sync)
+.sync.lock
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
