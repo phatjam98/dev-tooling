@@ -1,14 +1,16 @@
 # Dev-Tooling
 
-Development environment synchronization and remote access tools for Mac-Studio and MacBookPro.
+Development environment synchronization, remote access, and AI tooling for Mac-Studio and MacBookPro.
 
 ## Overview
 
 This repo provides:
 - **Rsync sync script** - Mirror directories between machines for offline work
 - **Tailscale setup** - Mesh VPN for secure remote access from anywhere
+- **Claude MCP setup** - Configure Claude Code with Grafana and other MCP servers
 
 See [TAILSCALE.md](TAILSCALE.md) for network setup guide.
+See [claude-mcp/README.md](claude-mcp/README.md) for AI tooling setup.
 
 ## Quick Start
 
