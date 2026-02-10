@@ -1,6 +1,16 @@
 # Dev-Tooling
 
-Rsync-based synchronization tool to mirror development directories between Mac-Studio and MacBookPro.
+Development environment synchronization, remote access, and AI tooling for Mac-Studio and MacBookPro.
+
+## Overview
+
+This repo provides:
+- **Rsync sync script** - Mirror directories between machines for offline work
+- **Tailscale setup** - Mesh VPN for secure remote access from anywhere
+- **Claude MCP setup** - Configure Claude Code with Grafana and other MCP servers
+
+See [TAILSCALE.md](TAILSCALE.md) for network setup guide.
+See [claude-mcp/README.md](claude-mcp/README.md) for AI tooling setup.
 
 ## Quick Start
 
@@ -50,6 +60,26 @@ Rsync-based synchronization tool to mirror development directories between Mac-S
 ## SSH Setup
 
 Add the following to `~/.ssh/config` on **both machines**:
+
+### With Tailscale (Recommended)
+
+Using Tailscale MagicDNS names works from anywhere:
+
+```
+Host mac-studio
+    HostName mac-studio
+    User traviscarter
+    IdentityFile ~/.ssh/id_ed25519
+
+Host macbook-pro
+    HostName macbook-pro
+    User traviscarter
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+### Local Network Only (Bonjour)
+
+If you only need to connect on the same local network:
 
 ```
 Host mac-studio
