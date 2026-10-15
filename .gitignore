@@ -6,3 +6,7 @@
 
 # macOS
 .DS_Store
+
+# Grafana MCP caller-auth token (never commit)
+.mcp-grafana-server-token
+server-token

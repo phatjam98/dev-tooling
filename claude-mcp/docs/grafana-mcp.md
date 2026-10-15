@@ -1,5 +1,12 @@
 # Grafana MCP Setup Guide
 
+> **Prefer the shared-container setup.** `../mcp-grafana-http-up` runs one
+> long-lived `streamable-http` container per Grafana environment (nonprod on
+> `:8000`, prod on `:8001`), and every Claude Code session shares it. That
+> replaces one stdio container per session. See
+> [the README](../README.md#grafana-mcp--shared-containers-recommended) for setup.
+> The rest of this guide covers the legacy per-session stdio wrapper.
+
 This guide helps ECFX team members set up the Grafana MCP (Model Context Protocol) server for use with Claude Code, enabling AI-assisted Grafana operations.
 
 ## Overview

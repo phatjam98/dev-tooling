@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# Start (or restart) a long-lived mcp-grafana container in streamable-http mode,
+# one per Grafana environment, so every Claude Code session shares it over HTTP
+# instead of spawning its own stdio container (see mcp-grafana-duplo).
+#
+# Usage: mcp-grafana-http-up [nonprod|prod|all]   (default: all)
+#
+# Token resolution mirrors mcp-grafana-duplo: the long-lived API token stored in
+# ~/.duplo/config for the environment's Duplo host, falling back to duplo-jit.
+# A duplo-jit token is short-lived: re-run this script when Grafana calls start
+# failing with auth errors, or add a long-lived token to ~/.duplo/config.
+#
+# Claude Code side (user scope), run once:
+#   T="$(cat ~/.config/mcp-grafana/server-token)"
+#   claude mcp add --transport http -s user grafana      http://localhost:8000/mcp -H "Authorization: Bearer $T"
+#   claude mcp add --transport http -s user grafana-prod http://localhost:8001/mcp -H "Authorization: Bearer $T"
+
+set -euo pipefail
+
+DUPLO_CONFIG="${DUPLO_CONFIG:-$HOME/.duplo/config}"
+DOCKER_IMAGE="${MCP_GRAFANA_IMAGE:-grafana/mcp-grafana}"
+# Kept outside the repo checkout so it can never be committed.
+SERVER_TOKEN_FILE="${MCP_GRAFANA_SERVER_TOKEN_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/mcp-grafana/server-token}"
+
+# Local caller-auth token: gates the HTTP endpoint so only clients holding it
+# (your Claude Code config) can use the container's Grafana credentials.
+if [ ! -s "$SERVER_TOKEN_FILE" ]; then
+    ( umask 077; mkdir -p "$(dirname "$SERVER_TOKEN_FILE")"; openssl rand -hex 32 > "$SERVER_TOKEN_FILE" )
+    echo "generated caller-auth token at $SERVER_TOKEN_FILE" >&2
+fi
+MCP_GRAFANA_SERVER_TOKEN="$(cat "$SERVER_TOKEN_FILE")"
+export MCP_GRAFANA_SERVER_TOKEN
+
+stored_token() {  # $1 = duplo host
+    local want="${1%/}"
+    [ -r "$DUPLO_CONFIG" ] || return 1
+    awk -v want="$want" '
+        /^-[[:space:]]*name:/   { host=""; token="" }
+        /^[[:space:]]*host:/    { h=$2; sub(/\/+$/, "", h); host=h }
+        /^[[:space:]]*token:/   { token=$2 }
+        host == want && token != "" { print token; found=1; exit }
+        END { exit(found ? 0 : 1) }
+    ' "$DUPLO_CONFIG"
+}
+
+jit_token() {  # $1 = duplo host
+    command -v duplo-jit >/dev/null 2>&1 || return 1
+    duplo-jit duplo --host "$1" --interactive 2>/dev/null \
+        | grep -o '"DuploToken":"[^"]*"' | cut -d'"' -f4
+}
+
+start_one() {  # $1=name $2=port $3=grafana url $4=duplo host
+    local name="$1" port="$2" grafana_url="$3" duplo_host="$4" token
+    token="$(stored_token "$duplo_host" || true)"
+    if [ -z "$token" ]; then
+        echo "$name: no stored token for $duplo_host in $DUPLO_CONFIG; using duplo-jit (short-lived, re-run this script when it expires)" >&2
+        token="$(jit_token "$duplo_host" || true)"
+    fi
+    if [ -z "$token" ]; then
+        echo "$name: could not obtain a DuploCloud token for $duplo_host" >&2
+        return 1
+    fi
+
+    docker rm -f "$name" >/dev/null 2>&1 || true
+    GRAFANA_URL="$grafana_url" GRAFANA_SERVICE_ACCOUNT_TOKEN="$token" \
+    docker run -d --name "$name" --restart unless-stopped \
+        -p "127.0.0.1:${port}:${port}" \
+        -e GRAFANA_URL -e GRAFANA_SERVICE_ACCOUNT_TOKEN -e MCP_GRAFANA_SERVER_TOKEN \
+        "$DOCKER_IMAGE" \
+        -t streamable-http --address "0.0.0.0:${port}" \
+        --session-idle-timeout-minutes 0 >/dev/null
+    echo "$name: http://localhost:${port}/mcp -> $grafana_url"
+}
+
+case "${1:-all}" in
+    nonprod) start_one mcp-grafana-nonprod 8000 https://grafana-proxy-otel-nonprod.cloud.ecfxglobal.net https://duplo.cloud.ecfxglobal.net ;;
+    prod)    start_one mcp-grafana-prod    8001 https://grafana-proxy-otel-prod01.cloud-prod.ecfxglobal.net https://duplo.cloud-prod.ecfxglobal.net ;;
+    all)     "$0" nonprod; "$0" prod ;;
+    *)       echo "usage: $(basename "$0") [nonprod|prod|all]" >&2; exit 2 ;;
+esac

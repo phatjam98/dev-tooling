@@ -6,9 +6,60 @@ Setup tooling for configuring Claude Code with MCP (Model Context Protocol) serv
 
 | MCP Server | Description | Setup Script |
 |------------|-------------|--------------|
-| **Grafana** | Dashboards, Prometheus, Loki, alerts | `./setup-grafana-mcp.sh` |
+| **Grafana** (recommended) | Shared HTTP containers, one per environment | `./mcp-grafana-http-up` |
+| **Grafana** (legacy) | Per-session stdio wrapper | `./setup-grafana-mcp.sh` |
 
-## Grafana MCP
+## Grafana MCP — shared containers (recommended)
+
+The legacy setup below runs a separate stdio `mcp-grafana` process for **every**
+Claude Code session and every spawned agent. With many sessions open, that means
+dozens of duplicate containers. Instead, `mcp-grafana-http-up` starts **one
+long-lived container per Grafana environment** in `streamable-http` mode, and
+every session connects to it over HTTP.
+
+| MCP name | Endpoint | Container | Grafana |
+|----------|----------|-----------|---------|
+| `grafana` | `http://localhost:8000/mcp` | `mcp-grafana-nonprod` | nonprod |
+| `grafana-prod` | `http://localhost:8001/mcp` | `mcp-grafana-prod` | prod01 |
+
+Containers bind to `127.0.0.1` only, use `--restart unless-stopped`, and require
+a local caller-auth token (`--server-auth-token`) kept in
+`~/.config/mcp-grafana/server-token`. The script generates that token on first run.
+
+### Setup
+
+Prerequisites: Docker, `openssl`, and DuploCloud access (a long-lived token in
+`~/.duplo/config`, or `duplo-jit`). Go is **not** needed because the
+`grafana/mcp-grafana` image is pulled from Docker Hub.
+
+```bash
+cd ~/dev-tooling/claude-mcp
+./mcp-grafana-http-up            # all (default) | nonprod | prod
+
+# Register with Claude Code once (user scope). Remove old stdio entries first.
+claude mcp remove grafana -s user 2>/dev/null; claude mcp remove grafana-prod -s user 2>/dev/null
+T="$(cat ~/.config/mcp-grafana/server-token)"
+claude mcp add --transport http -s user grafana      http://localhost:8000/mcp -H "Authorization: Bearer $T"
+claude mcp add --transport http -s user grafana-prod http://localhost:8001/mcp -H "Authorization: Bearer $T"
+```
+
+Start a **new** Claude Code session afterwards.
+
+### Token expiry
+
+The container's Grafana credential is a DuploCloud token. It comes from the
+token stored in `~/.duplo/config` for that Duplo host, or from `duplo-jit` if
+none is stored. `duplo-jit` tokens are short-lived (prod usually has no stored
+token). When Grafana tools start returning auth errors, refresh that environment:
+
+```bash
+./mcp-grafana-http-up prod       # or nonprod / all
+```
+
+If an endpoint is unreachable (for example, after Docker restarts with the
+container removed), run `./mcp-grafana-http-up all`.
+
+## Grafana MCP — legacy per-session setup
 
 Provides Claude Code with tools to interact with Grafana:
 - Search and view dashboards
